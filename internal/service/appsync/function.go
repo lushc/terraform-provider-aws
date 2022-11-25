@@ -150,19 +150,25 @@ func resourceFunctionCreate(d *schema.ResourceData, meta interface{}) error {
 	apiID := d.Get("api_id").(string)
 
 	input := &appsync.CreateFunctionInput{
-		ApiId:                  aws.String(apiID),
-		DataSourceName:         aws.String(d.Get("data_source").(string)),
-		FunctionVersion:        aws.String(d.Get("function_version").(string)),
-		Name:                   aws.String(d.Get("name").(string)),
-		RequestMappingTemplate: aws.String(d.Get("request_mapping_template").(string)),
+		ApiId:          aws.String(apiID),
+		DataSourceName: aws.String(d.Get("data_source").(string)),
+		Name:           aws.String(d.Get("name").(string)),
 	}
 
 	if v, ok := d.GetOk("description"); ok {
 		input.Description = aws.String(v.(string))
 	}
 
+	if v, ok := d.GetOk("request_mapping_template"); ok {
+		input.RequestMappingTemplate = aws.String(v.(string))
+	}
+
 	if v, ok := d.GetOk("response_mapping_template"); ok {
 		input.ResponseMappingTemplate = aws.String(v.(string))
+	}
+
+	if v, ok := d.GetOk("function_version"); ok {
+		input.FunctionVersion = aws.String(v.(string))
 	}
 
 	if v, ok := d.GetOkExists("max_batch_size"); ok {
@@ -171,6 +177,14 @@ func resourceFunctionCreate(d *schema.ResourceData, meta interface{}) error {
 
 	if v, ok := d.GetOk("sync_config"); ok && len(v.([]interface{})) > 0 {
 		input.SyncConfig = expandSyncConfig(v.([]interface{}))
+	}
+
+	if v, ok := d.GetOk("code"); ok {
+		input.Code = aws.String(v.(string))
+	}
+
+	if v, ok := d.GetOk("runtime"); ok && len(v.([]interface{})) > 0 {
+		input.Runtime = expandAppSyncRuntime(v.([]interface{}))
 	}
 
 	resp, err := conn.CreateFunction(input)
@@ -217,9 +231,14 @@ func resourceFunctionRead(d *schema.ResourceData, meta interface{}) error {
 	d.Set("request_mapping_template", function.RequestMappingTemplate)
 	d.Set("response_mapping_template", function.ResponseMappingTemplate)
 	d.Set("max_batch_size", function.MaxBatchSize)
+	d.Set("code", function.Code)
 
 	if err := d.Set("sync_config", flattenSyncConfig(function.SyncConfig)); err != nil {
 		return fmt.Errorf("error setting sync_config: %w", err)
+	}
+
+	if err := d.Set("runtime", flattenAppSyncRuntime(function.Runtime)); err != nil {
+		return fmt.Errorf("error setting runtime: %w", err)
 	}
 
 	return nil
@@ -234,20 +253,26 @@ func resourceFunctionUpdate(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	input := &appsync.UpdateFunctionInput{
-		ApiId:                  aws.String(apiID),
-		DataSourceName:         aws.String(d.Get("data_source").(string)),
-		FunctionId:             aws.String(functionID),
-		FunctionVersion:        aws.String(d.Get("function_version").(string)),
-		Name:                   aws.String(d.Get("name").(string)),
-		RequestMappingTemplate: aws.String(d.Get("request_mapping_template").(string)),
+		ApiId:          aws.String(apiID),
+		DataSourceName: aws.String(d.Get("data_source").(string)),
+		FunctionId:     aws.String(functionID),
+		Name:           aws.String(d.Get("name").(string)),
 	}
 
 	if v, ok := d.GetOk("description"); ok {
 		input.Description = aws.String(v.(string))
 	}
 
+	if v, ok := d.GetOk("request_mapping_template"); ok {
+		input.RequestMappingTemplate = aws.String(v.(string))
+	}
+
 	if v, ok := d.GetOk("response_mapping_template"); ok {
 		input.ResponseMappingTemplate = aws.String(v.(string))
+	}
+
+	if v, ok := d.GetOk("function_version"); ok {
+		input.FunctionVersion = aws.String(v.(string))
 	}
 
 	if v, ok := d.GetOk("max_batch_size"); ok {
@@ -256,6 +281,14 @@ func resourceFunctionUpdate(d *schema.ResourceData, meta interface{}) error {
 
 	if v, ok := d.GetOk("sync_config"); ok && len(v.([]interface{})) > 0 {
 		input.SyncConfig = expandSyncConfig(v.([]interface{}))
+	}
+
+	if v, ok := d.GetOk("code"); ok {
+		input.Code = aws.String(v.(string))
+	}
+
+	if v, ok := d.GetOk("runtime"); ok && len(v.([]interface{})) > 0 {
+		input.Runtime = expandAppSyncRuntime(v.([]interface{}))
 	}
 
 	_, err = conn.UpdateFunction(input)
@@ -359,6 +392,39 @@ func flattenLambdaConflictHandlerConfig(config *appsync.LambdaConflictHandlerCon
 
 	result := map[string]interface{}{
 		"lambda_conflict_handler_arn": aws.StringValue(config.LambdaConflictHandlerArn),
+	}
+
+	return []map[string]interface{}{result}
+}
+
+func expandAppSyncRuntime(l []interface{}) *appsync.AppSyncRuntime {
+	if len(l) == 0 || l[0] == nil {
+		return nil
+	}
+
+	configured := l[0].(map[string]interface{})
+
+	result := &appsync.AppSyncRuntime{}
+
+	if v, ok := configured["name"].(string); ok {
+		result.Name = aws.String(v)
+	}
+
+	if v, ok := configured["version"].(string); ok {
+		result.RuntimeVersion = aws.String(v)
+	}
+
+	return result
+}
+
+func flattenAppSyncRuntime(config *appsync.AppSyncRuntime) []map[string]interface{} {
+	if config == nil {
+		return nil
+	}
+
+	result := map[string]interface{}{
+		"name":    aws.StringValue(config.Name),
+		"version": aws.StringValue(config.RuntimeVersion),
 	}
 
 	return []map[string]interface{}{result}
