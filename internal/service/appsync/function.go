@@ -47,21 +47,25 @@ func ResourceFunction() *schema.Resource {
 				ValidateFunc: validation.StringMatch(regexp.MustCompile(`[_A-Za-z][_0-9A-Za-z]*`), "must match [_A-Za-z][_0-9A-Za-z]*"),
 			},
 			"request_mapping_template": {
-				Type:     schema.TypeString,
-				Required: true,
+				Type:         schema.TypeString,
+				Optional:     true,
+				RequiredWith: []string{"response_mapping_template"},
+				ExactlyOneOf: []string{"request_mapping_template", "code"},
 			},
 			"response_mapping_template": {
-				Type:     schema.TypeString,
-				Required: true,
+				Type:         schema.TypeString,
+				Optional:     true,
+				RequiredWith: []string{"request_mapping_template"},
 			},
 			"description": {
 				Type:     schema.TypeString,
 				Optional: true,
 			},
 			"function_version": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Default:  "2018-05-29",
+				Type:         schema.TypeString,
+				Optional:     true,
+				RequiredWith: []string{"request_mapping_template"},
+				Default:      "2018-05-29",
 				ValidateFunc: validation.StringInSlice([]string{
 					"2018-05-29",
 				}, true),
@@ -106,6 +110,35 @@ func ResourceFunction() *schema.Resource {
 			"function_id": {
 				Type:     schema.TypeString,
 				Computed: true,
+			},
+			"code": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				RequiredWith: []string{"runtime"},
+				ExactlyOneOf: []string{"request_mapping_template", "code"},
+			},
+			"runtime": {
+				Type:         schema.TypeList,
+				Optional:     true,
+				RequiredWith: []string{"code"},
+				MaxItems:     1,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"name": {
+							Type:         schema.TypeString,
+							Required:     true,
+							ValidateFunc: validation.StringInSlice(appsync.RuntimeName_Values(), false),
+						},
+						"version": {
+							Type:     schema.TypeString,
+							Optional: true,
+							Default:  "1.0.0",
+							ValidateFunc: validation.StringInSlice([]string{
+								"1.0.0",
+							}, true),
+						},
+					},
+				},
 			},
 		},
 	}
